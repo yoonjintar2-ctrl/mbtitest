@@ -22,10 +22,9 @@
   <script> 맨 위 SUPABASE_URL / SUPABASE_KEY 두 줄만 채우면 실서비스로 전환.
   비워두면 데모 모드(메모리 저장, 새로고침 시 소멸)로 동작하고 상단에 배지가 뜸.
 
-  [자동 로그인]
-  쿠키 mm_nick (1년, SameSite=Lax)에 닉네임 저장.
-  카톡 인앱 브라우저와 크롬/사파리는 쿠키가 분리되므로
-  "닉네임으로 열기" 화면은 반드시 남겨둘 것.
+  [로그인 없음]
+  자동 로그인 기능 없음. 결과는 항상 "닉네임으로 열기"로 조회.
+  쿠키는 중복 투표 방지용 mm_voter 하나만 사용.
 
   [주소 규칙]
   /@닉네임  → 친구 추측 화면 (vercel.json rewrite 필요)
@@ -338,13 +337,14 @@ const WORDS = ['고릴라','참치','냉장고','물결','달팽이','철봉','�
 /* ============================================================
    상태 / 유틸
    ============================================================ */
-let S = { screen:'home', nick:'', room:null, remembered:null,
+let S = { screen:'home', nick:'', room:null,
           mine:{}, guess:{}, qi:0, qs:[0,0,0,0], modal:false, hint:'' };
 const app = document.getElementById('app');
 const esc = s => String(s).replace(/[<>&"]/g,c=>({'<':'&lt;','>':'&gt;','&':'&amp;','"':'&quot;'}[c]));
 const mbtiOf = o => AXES.map((x,i)=> o[i] || '').join('');
 /* GitHub Pages는 /@닉네임 주소를 처리할 수 없어 ?u= 방식을 쓴다.
    Vercel은 vercel.json rewrite 덕분에 /@닉네임을 그대로 쓴다. */
+const CAN_SHARE = typeof navigator !== 'undefined' && !!navigator.share;
 const IS_PAGES = location.hostname.endsWith('github.io');
 const BASE = (() => {
   if(!IS_PAGES) return '/';
@@ -455,16 +455,6 @@ function stampBars(t, owner, tag, yours, showTag){
    화면
    ============================================================ */
 function viewHome(){
-  const wc = S.remembered ? `
-    <div class="welcome">
-      <div class="who">이 브라우저에 기억된 계정</div>
-      <div class="nk">@${esc(S.remembered)}</div>
-      <button class="btn" id="resume" style="margin-top:14px">내 결과 바로 보기</button>
-      <div class="center" style="margin-top:6px">
-        <button class="linkbtn" data-go="lookup">다른 닉네임 열기</button>
-        <button class="linkbtn" id="forget">기억 지우기</button>
-      </div>
-    </div>` : '';
   return `
   <div class="hero">
     <span class="eyebrow">성격 인식 격차 리포트</span>
@@ -477,10 +467,9 @@ function viewHome(){
     <p style="margin-top:16px">닉네임 하나 정하고 링크만 뿌리면 끝.<br>친구들이 찍은 답을 4개 항목별로 모아드립니다.</p>
   </div>
   ${AD_HOME()}
-  ${wc}
   <div class="stack">
-    <button class="btn ${S.remembered?'ghost':''}" data-go="nick">내 테스트 만들기</button>
-    ${S.remembered ? '' : '<button class="btn ghost" data-go="lookup">닉네임으로 내 결과 열기</button>'}
+    <button class="btn" data-go="nick">내 테스트 만들기</button>
+    <button class="btn ghost" data-go="lookup">닉네임으로 내 결과 열기</button>
   </div>
   `;
 }
@@ -491,8 +480,7 @@ function viewNick(){
   <div class="pad">
     <span class="eyebrow">STEP 1 / 2</span>
     <h2 style="margin-top:8px">닉네임을 정해주세요</h2>
-    <p style="margin-top:6px">이게 곧 내 아이디입니다. 이 브라우저는 자동으로 기억하고,
-      다른 기기에선 이 닉네임만 넣으면 열려요.</p>
+    <p style="margin-top:6px">이게 곧 내 아이디입니다. 나중에 이 닉네임만 넣으면 결과를 다시 볼 수 있어요.</p>
     <div class="nickfield" style="margin-top:20px">
       <span class="at">@</span>
       <input id="nick" value="${esc(S.nick)}" maxlength="12" autocomplete="off" placeholder="고릴라386">
@@ -551,15 +539,9 @@ function viewShare(){
     <p style="margin-top:6px">친구가 고르는 순간 표가 쌓입니다.<br>3명만 모여도 꽤 볼만해져요.</p>
   </div>
   <div class="stack" style="margin-top:22px">
-    <button class="btn kakao" id="kshare">친구들에게 링크 보내기</button>
+    ${CAN_SHARE ? '<button class="btn kakao" id="kshare">친구들에게 링크 보내기</button>' : ''}
     <div class="linkbox"><code>${link(nk)}</code><button class="copy" id="cp">링크 복사</button></div>
     <button class="btn ghost" data-go="result">내 결과 보기 ${n?`(${n}명 참여)`:''}</button>
-  </div>
-  <div class="card" style="border-color:var(--me)">
-    <h3 style="color:var(--me)">다시 들어올 땐 그냥 들어오세요</h3>
-    <p style="margin-top:8px">이 브라우저는 <b style="color:var(--ink)">@${nk}</b> 를 기억합니다.
-      나갔다 들어와도 결과가 바로 열려요. 다른 기기나 카톡 창에서 열 때만
-      첫 화면에서 닉네임을 한 번 넣으면 됩니다.</p>
   </div>
   ${AD_SHARE()}
   <button class="btn ghost" data-go="home">처음으로</button>
@@ -572,8 +554,9 @@ function viewResult(){
     return `<div class="pad center">
       <h2>아직 아무도 안 왔어요</h2>
       <p style="margin-top:8px">친구 한 명만 들어와도 그래프가 그려집니다.</p>
+      <button class="btn ghost sm" id="refresh" style="margin-top:16px">새로고침 · 새로 들어온 표 확인</button>
       <div class="stack" style="margin-top:20px">
-        <button class="btn kakao" id="kshare">친구들에게 링크 보내기</button>
+        ${CAN_SHARE ? '<button class="btn kakao" id="kshare">친구들에게 링크 보내기</button>' : ''}
         <div class="linkbox"><code>${link(nk)}</code><button class="copy" id="cp">링크 복사</button></div>
         <button class="btn ghost" data-go="home">처음으로</button>
       </div>
@@ -587,6 +570,7 @@ function viewResult(){
   <div class="pad">
     <span class="eyebrow">@${nk} 의 인식 격차 리포트</span>
     <div class="count" style="margin-top:10px"><span class="n mono">${n}</span><span class="u">명이 나를 찍었습니다</span></div>
+    <button class="btn ghost sm" id="refresh" style="margin-top:12px">새로고침 · 새로 들어온 표 확인</button>
     <div class="facepair">
       <div class="face me flip"><div class="tag">내가 아는 나</div><div class="val">${my}</div></div>
       <div class="vs">VS</div>
@@ -610,7 +594,8 @@ function viewResult(){
   </div>
   ${AD_REPORT()}
   <div class="stack" style="margin-top:18px">
-    <button class="btn kakao" id="kshare">링크 더 보내서 표 모으기</button>
+    ${CAN_SHARE ? '<button class="btn kakao" id="kshare">링크 더 보내서 표 모으기</button>' : ''}
+    <div class="linkbox"><code>${link(nk)}</code><button class="copy" id="cp">링크 복사</button></div>
     <button class="btn ghost" data-go="home">처음으로</button>
   </div>
   `;
@@ -619,8 +604,7 @@ function viewResult(){
 function viewLookup(){
   return `<div class="pad">
     <h2>닉네임으로 열기</h2>
-    <p style="margin-top:6px">비밀번호 없습니다. 만들 때 쓴 닉네임만 넣으세요.
-      한 번 열면 이 브라우저가 기억합니다.</p>
+    <p style="margin-top:6px">비밀번호 없습니다. 만들 때 쓴 닉네임만 넣으세요.</p>
     <div class="nickfield" style="margin-top:18px">
       <span class="at">@</span>
       <input id="mynick" maxlength="12" autocomplete="off" placeholder="고릴라386">
@@ -673,13 +657,13 @@ function viewReveal(){
     ${stampBars(t, my, tag, g, false)}
     <p class="note" style="margin-top:14px">채점평과 전체 리포트는 ${nk}님만 볼 수 있어요.</p>
   </div>
-  ${AD_REVEAL()}
-  <div class="card" style="border-color:var(--them)">
+  <div class="card" style="border-color:var(--them);margin-top:16px">
     <h3 style="color:var(--them)">그럼 당신은요?</h3>
     <p style="margin-top:8px">${nk}님을 이렇게 본 당신, 친구들은 당신을 어떻게 볼까요.
       닉네임 하나만 정하면 30초 만에 확인됩니다.</p>
     <button class="btn pink" data-go="nick" style="margin-top:14px">내 테스트 만들기</button>
-  </div>`;
+  </div>
+  ${AD_REVEAL()}`;
 }
 
 function viewModal(){
@@ -776,13 +760,13 @@ app.addEventListener('click', async e=>{
     return render();
   }
 
-  if(id==='resume'){
-    if(!(await loadUser(S.remembered))) { S.remembered=null; return render(); }
-    return go(S.room.n ? 'result' : 'share');
-  }
-  if(id==='forget'){
-    cookie.del('mm_nick'); S.remembered=null;
-    toast('이 브라우저에서 기억을 지웠어요'); return render();
+  if(id==='refresh'){
+    el.disabled = true;
+    const before = S.room ? S.room.n : 0;
+    if(!(await loadUser(S.nick))){ el.disabled=false; return toast('불러오지 못했어요'); }
+    render();
+    const gained = S.room.n - before;
+    return toast(gained > 0 ? `새로 ${gained}명이 참여했어요` : '아직 새로 들어온 표가 없어요');
   }
 
   if(id==='nicknext'){
@@ -799,8 +783,6 @@ app.addEventListener('click', async e=>{
     try{ await api.create(S.nick, mbtiOf(S.mine)); }
     catch(err){ el.disabled=false; return toast('만들지 못했어요. 잠시 후 다시 시도해주세요.'); }
     await loadUser(S.nick);
-    cookie.set('mm_nick', S.nick);
-    S.remembered = S.nick;
     return go('share');
   }
 
@@ -820,8 +802,6 @@ app.addEventListener('click', async e=>{
     const v=(document.getElementById('mynick').value||'').trim();
     if(!v) return toast('닉네임을 넣어주세요');
     if(!(await loadUser(v))) return toast(`@${v} 로 만든 테스트가 없어요.`);
-    cookie.set('mm_nick', S.nick);
-    S.remembered = S.nick;
     return go(S.room.n ? 'result' : 'share');
   }
 
@@ -835,9 +815,7 @@ app.addEventListener('click', async e=>{
 });
 
 /* ---------- 부팅 ----------
-   1) 주소가 /@닉네임 이고 내 닉네임이 아니면 → 친구 추측 화면
-   2) 쿠키에 기억된 닉네임이 있으면 → 내 결과로 직행
-   3) 둘 다 없으면 → 첫 화면                                   */
+   주소에 닉네임이 실려 있으면 친구 추측 화면, 아니면 첫 화면 */
 (async function boot(){
   if(!LIVE){
     const f = document.createElement('div');
@@ -853,26 +831,11 @@ app.addEventListener('click', async e=>{
   }
   urlNick = urlNick.trim();
 
-  const last = cookie.get('mm_nick');
-
-  if(urlNick && urlNick.toLowerCase() !== String(last||'').toLowerCase()){
+  if(urlNick){
     if(await loadUser(urlNick)){
       S.guess = {}; S.screen = 'guess'; render(); return;
     }
     toast(`@${urlNick} 를 찾지 못했어요`);
-  }
-
-  if(last && await loadUser(last)){
-    S.remembered = S.nick;
-    S.screen = S.room.n ? 'result' : 'share';
-    render(); toast(`@${S.nick} 님, 다시 오셨네요`);
-    return;
-  }
-
-  if(urlNick && await loadUser(urlNick)){
-    S.remembered = S.nick;
-    S.screen = S.room.n ? 'result' : 'share';
-    render(); return;
   }
 
   render();
