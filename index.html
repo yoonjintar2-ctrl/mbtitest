@@ -73,9 +73,8 @@
   .pad{padding-top:26px}
   .center{text-align:center}
 
-  .adslot{margin:24px auto;width:100%;max-width:320px;min-height:100px;display:flex;align-items:center;
-    justify-content:center;border:1.5px dashed rgba(25,18,51,.28);border-radius:12px;
-    font-size:10.5px;font-weight:700;letter-spacing:.1em;color:rgba(25,18,51,.32)}
+  .adslot{margin:24px auto;width:100%;max-width:320px;display:flex;
+    align-items:center;justify-content:center;overflow:hidden}
 
   .hero{padding:34px 0 10px}
   .facepair{display:grid;grid-template-columns:1fr auto 1fr;align-items:center;gap:8px;margin:26px 0 8px}
@@ -345,7 +344,27 @@ function toast(msg){
   const t=document.createElement('div'); t.className='toast'; t.textContent=msg;
   document.body.appendChild(t); setTimeout(()=>t.remove(),2400);
 }
-const AD = label => `<div class="adslot">KAKAO ADFIT · 320×100 · ${label}</div>`;
+/* ---------- 카카오 애드핏 ----------
+   SPA라 화면이 바뀔 때마다 <ins>가 새로 그려지므로,
+   render() 끝에서 ba.min.js를 다시 붙여 미처리 슬롯을 스캔시킨다. */
+const AD = (unit, w, h) => `<div class="adslot" style="min-height:${h}px">` +
+  `<ins class="kakao_ad_area" style="display:none;" data-ad-unit="${unit}" ` +
+  `data-ad-width="${w}" data-ad-height="${h}"></ins></div>`;
+
+const AD_HOME   = () => AD('DAN-9KyqVqZsh3BmIefc', 320, 50);
+const AD_RESULT = () => AD('DAN-InhACmC1tfraPcAp', 320, 100);
+const AD_REVEAL = () => AD('DAN-Dy07toZAuTYioidb', 320, 480);
+
+function loadAds(){
+  if(!document.querySelector('.kakao_ad_area')) return;
+  document.querySelectorAll('script[data-adfit]').forEach(el => el.remove());
+  const sc = document.createElement('script');
+  sc.type = 'text/javascript';
+  sc.async = true;
+  sc.dataset.adfit = '1';
+  sc.src = '//t1.kakaocdn.net/kas/static/ba.min.js';
+  document.body.appendChild(sc);
+}
 
 function tally(votes){
   return AXES.map((x,i)=>{
@@ -412,7 +431,7 @@ function viewHome(){
     </div>
     <p style="margin-top:16px">닉네임 하나 정하고 링크만 뿌리면 끝.<br>친구들이 찍은 답을 4개 항목별로 모아드립니다.</p>
   </div>
-  ${AD('메인 하단')}
+  ${AD_HOME()}
   ${wc}
   <div class="stack">
     <button class="btn ${S.remembered?'ghost':''}" data-go="nick">내 테스트 만들기</button>
@@ -445,7 +464,7 @@ function viewNick(){
       ${ok? `@${esc(S.nick)} 로 시작하기` : '닉네임을 입력해주세요'}</button>
     <button class="btn ghost" data-go="home" style="margin-top:10px">처음으로</button>
   </div>
-  ${AD('닉네임 화면 하단')}`;
+  `;
 }
 
 function axisPicker(sel, prefix){
@@ -491,7 +510,6 @@ function viewShare(){
     <div class="linkbox"><code>${link(nk)}</code><button class="copy" id="cp">링크 복사</button></div>
     <button class="btn ghost" data-go="result">내 결과 보기 ${n?`(${n}명 참여)`:''}</button>
   </div>
-  ${AD('공유 화면 하단')}
   <div class="card" style="border-color:var(--me)">
     <h3 style="color:var(--me)">다시 들어올 땐 그냥 들어오세요</h3>
     <p style="margin-top:8px">이 브라우저는 <b style="color:var(--ink)">@${nk}</b> 를 기억합니다.
@@ -511,7 +529,6 @@ function viewResult(){
         <button class="btn kakao" id="cp">카카오톡으로 친구들에게 물어보기</button>
         <div class="linkbox"><code>${link(nk)}</code><button class="copy" id="cp">링크 복사</button></div>
       </div>
-      ${AD('빈 결과 화면')}
     </div>`;
   }
   const friendMbti = t.map(x=>x.win).join('');
@@ -538,7 +555,7 @@ function viewResult(){
       <span><i style="background:#00BFA6"></i>내가 고른 답</span></div>
     ${stampBars(t, my, '내 답', null, true)}
   </div>
-  ${AD('결과 리포트 중단')}
+  ${AD_RESULT()}
   <div class="card">
     <h3>친구들의 채점평</h3>
     ${detail.map(d=>`<p style="margin-top:9px;color:var(--ink)">· ${d}</p>`).join('')}
@@ -562,7 +579,7 @@ function viewLookup(){
     <button class="btn" id="dolookup" style="margin-top:18px">결과 열기</button>
     <button class="btn ghost" data-go="home" style="margin-top:10px">처음으로</button>
   </div>
-  ${AD('결과 조회 화면')}`;
+  `;
 }
 
 function viewGuess(){
@@ -576,7 +593,7 @@ function viewGuess(){
     <button class="btn pink" id="submit" style="margin-top:18px" ${done?'':'disabled'}>
       ${done? mbtiOf(S.guess)+'! 정답 확인하기' : '4개 항목을 모두 골라주세요'}</button>
   </div>
-  ${AD('추측 화면 하단')}`;
+  `;
 }
 
 function viewReveal(){
@@ -607,7 +624,7 @@ function viewReveal(){
     ${stampBars(t, my, tag, g, false)}
     <p class="note" style="margin-top:14px">채점평과 전체 리포트는 ${nk}님만 볼 수 있어요.</p>
   </div>
-  ${AD('정답 공개 하단')}
+  ${AD_REVEAL()}
   <div class="card" style="border-color:var(--them)">
     <h3 style="color:var(--them)">그럼 당신은요?</h3>
     <p style="margin-top:8px">${nk}님을 이렇게 본 당신, 친구들은 당신을 어떻게 볼까요.
@@ -653,6 +670,7 @@ function render(){
                      : '한글·영문·숫자 2~12자. 띄어쓰기와 특수문자는 빼주세요.';
   });
   if(S.screen==='home') rotateHero();
+  loadAds();
 }
 
 let heroTimer;
