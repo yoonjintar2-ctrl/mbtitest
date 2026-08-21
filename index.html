@@ -191,8 +191,8 @@
 /* ★★★ 여기 두 줄만 채우면 실서비스로 전환됩니다 ★★★
    Supabase → Project Settings → API 에서 복사
    비워두면 '데모 모드'로 돌아갑니다 (새로고침하면 데이터 사라짐) */
-const SUPABASE_URL = '';
-const SUPABASE_KEY = '';
+const SUPABASE_URL = 'https://mscjvtgcdndkymscoznt.supabase.co';
+const SUPABASE_KEY = 'sb_publishable_s2MhFgqTmajU_bMhFQxRvg_Yitc3zTN';
 
 const LIVE = !!(SUPABASE_URL && SUPABASE_KEY);
 const sb   = LIVE ? window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY) : null;
