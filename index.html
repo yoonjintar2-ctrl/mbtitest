@@ -738,7 +738,8 @@ app.addEventListener('click', async e=>{
   }
 
   if(id==='cp'){
-    try{ await navigator.clipboard.writeText('https://'+link(S.nick)); }catch(err){}
+    const url = 'https://' + location.host + '/@' + encodeURIComponent(S.nick);
+    try{ await navigator.clipboard.writeText(url); }catch(err){}
     return toast('링크를 복사했어요 · ' + link(S.nick));
   }
 
@@ -772,7 +773,7 @@ app.addEventListener('click', async e=>{
     document.body.appendChild(f);
   }
 
-  const m = location.pathname.match(/^\/@(.+)$/);
+  const m = location.pathname.match(/^\/@?([^\/]+)\/?$/);
   let urlNick = m ? decodeURIComponent(m[1]) : '';
   if(!urlNick) urlNick = new URLSearchParams(location.search).get('u') || '';
   urlNick = urlNick.trim();
