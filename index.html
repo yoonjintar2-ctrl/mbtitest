@@ -158,8 +158,11 @@
     font-size:13px;font-weight:800;margin-bottom:8px}
   .dhead .L{font-size:19px;font-weight:900;letter-spacing:-.01em}
   .dhead .pc{font-size:12.5px;font-weight:800;margin:0 5px}
-  .dim{color:var(--ink-soft)}
-  .win-me{color:var(--me)} .win-them{color:var(--them)}
+  .dim{color:var(--ink-soft);font-weight:700}
+  .own{color:var(--me);font-weight:900}
+  .own .L{font-size:21px}
+  .owntag{display:inline-block;font-size:10px;font-weight:900;color:#fff;background:var(--me);
+    border:1.5px solid var(--line);border-radius:99px;padding:2px 8px;margin:0 6px;vertical-align:2px}
   .ydot{font-size:9px;vertical-align:2px;margin:0 3px;color:var(--them)}
   .dtrack{position:relative;height:26px;border:2.5px solid var(--line);border-radius:9px;
     background:#fff;overflow:hidden}
@@ -538,19 +541,18 @@ const AXFOOT = `<div class="foot">` +
   `<b>E</b> 외향 · <b>I</b> 내향 &nbsp;|&nbsp; <b>S</b> 감각 · <b>N</b> 직관<br>` +
   `<b>T</b> 사고 · <b>F</b> 감정 &nbsp;|&nbsp; <b>J</b> 계획 · <b>P</b> 즉흥</div>`;
 
-function stampBars(t, owner, yours){
+function stampBars(t, owner, yours, tag){
+  const T = tag || '내 답';
   return t.map((x,i)=>{
     const A = AXES[i];
     const aOwner = owner[i] === A.a;
-    const lWin = x.win === A.a;
-    const lCls = lWin ? (aOwner ? 'win-me' : 'win-them') : 'dim';
-    const rCls = lWin ? 'dim' : (aOwner ? 'win-them' : 'win-me');
     const dot = side => (yours && yours[i] === side) ? '<span class="ydot">●</span>' : '';
+    const chip = `<span class="owntag">${T}</span>`;
     return `
     <div class="drow">
       <div class="dhead">
-        <span class="${lCls}">${dot(A.a)}<span class="L">${A.a}</span><span class="pc">${x.pa}%</span></span>
-        <span class="${rCls}"><span class="pc">${x.pb}%</span><span class="L">${A.b}</span>${dot(A.b)}</span>
+        <span class="${aOwner?'own':'dim'}">${dot(A.a)}<span class="L">${A.a}</span><span class="pc">${x.pa}%</span>${aOwner?chip:''}</span>
+        <span class="${aOwner?'dim':'own'}">${aOwner?'':chip}<span class="pc">${x.pb}%</span><span class="L">${A.b}</span>${dot(A.b)}</span>
       </div>
       <div class="dtrack">
         <div class="dbar l" data-w="${x.pa/2}" style="background:${aOwner?'var(--me)':'var(--them)'}"></div>
@@ -693,9 +695,7 @@ function viewResult(){
   </div>
   <div class="card" style="margin-top:18px">
     <h3 style="margin-bottom:12px">항목별 득표</h3>
-    <div class="legend"><span><i style="background:#00BFA6"></i>내가 고른 쪽</span>
-      <span><i style="background:#FF3D7F"></i>반대쪽</span></div>
-    ${stampBars(t, my, null)}
+    ${stampBars(t, my, null, '내 답')}
     ${AXFOOT}
   </div>
   ${AD_RESULT()}
@@ -763,9 +763,7 @@ function viewReveal(){
   </div>
   <div class="card" style="margin-top:16px">
     <h3 style="margin-bottom:12px">지금까지 ${n}명은 이렇게 봤어요</h3>
-    <div class="legend"><span><i style="background:#00BFA6"></i>${nk}님의 답</span>
-      <span style="color:var(--them)">● 당신이 고른 쪽</span></div>
-    ${stampBars(t, my, g)}
+    ${stampBars(t, my, g, nk.length<=4 ? nk : '정답')}
     ${AXFOOT}
     <p class="note" style="margin-top:14px">채점평과 전체 리포트는 ${nk}님만 볼 수 있어요.</p>
   </div>
