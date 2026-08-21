@@ -260,7 +260,7 @@ let S = { screen:'home', nick:'', room:null, remembered:null,
 const app = document.getElementById('app');
 const esc = s => String(s).replace(/[<>&"]/g,c=>({'<':'&lt;','>':'&gt;','&':'&amp;','"':'&quot;'}[c]));
 const mbtiOf = o => AXES.map((x,i)=> o[i] || '').join('');
-const link = n => 'mbti-mirror.kr/@' + n;
+const link = n => location.host + '/@' + n;
 const NICK_RE = /^[가-힣a-zA-Z0-9]{2,12}$/;
 const suggest = () => WORDS[Math.floor(Math.random()*WORDS.length)] + Math.floor(Math.random()*900+100);
 
