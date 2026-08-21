@@ -151,6 +151,27 @@
   .legend i{display:inline-block;width:9px;height:9px;border-radius:3px;border:1.5px solid var(--line);
     vertical-align:-1px;margin-right:5px}
 
+  /* 양방향 막대 */
+  .drow{padding:14px 0}
+  .drow + .drow{border-top:1.5px solid rgba(25,18,51,.09)}
+  .dhead{display:flex;justify-content:space-between;align-items:baseline;
+    font-size:13px;font-weight:800;margin-bottom:8px}
+  .dhead .L{font-size:19px;font-weight:900;letter-spacing:-.01em}
+  .dhead .pc{font-size:12.5px;font-weight:800;margin:0 5px}
+  .dim{color:var(--ink-soft)}
+  .win-me{color:var(--me)} .win-them{color:var(--them)}
+  .ydot{font-size:9px;vertical-align:2px;margin:0 3px;color:var(--them)}
+  .dtrack{position:relative;height:26px;border:2.5px solid var(--line);border-radius:9px;
+    background:#fff;overflow:hidden}
+  .dbar{position:absolute;top:0;bottom:0;width:0;transition:width .9s cubic-bezier(.2,.8,.2,1)}
+  .dbar.l{right:50%;border-radius:6px 0 0 6px}
+  .dbar.r{left:50%;border-radius:0 6px 6px 0}
+  .mid{position:absolute;left:50%;top:-3px;bottom:-3px;width:3px;background:var(--line);
+    transform:translateX(-50%);z-index:3;border-radius:2px}
+  .foot{font-size:11px;line-height:1.85;color:var(--ink-soft);margin-top:16px;
+    padding-top:14px;border-top:1.5px solid rgba(25,18,51,.09)}
+  .foot b{color:var(--ink);font-weight:900}
+
   .count{display:flex;align-items:baseline;gap:8px}
   .count .n{font-size:52px;font-weight:900;letter-spacing:-.04em;line-height:1}
   .count .u{font-size:14px;font-weight:800;color:var(--ink-soft)}
@@ -509,36 +530,32 @@ function tally(votes){
   });
 }
 
-/* ---------- A안 도장 바 (결과·친구통계 공용) ----------
-   owner : 퀴즈 낸 사람이 고른 4글자 (초록 도장)
-   tag   : 도장에 찍힐 라벨
-   yours : 보는 사람이 고른 4글자 (분홍 점). 없으면 생략
-   showTag : 일치/엇갈림 칩 표시 여부                        */
-function stampBars(t, owner, tag, yours, showTag){
+/* ---------- 양방향 막대 (결과·친구통계 공용) ----------
+   가운데가 50% 기준선. 득표한 만큼 좌우로 뻗는다.
+   owner : 출제자가 고른 4글자 → 그쪽 막대가 녹색
+   yours : 보는 사람이 고른 4글자 (없으면 생략) → 점으로 표시 */
+const AXFOOT = `<div class="foot">` +
+  `<b>E</b> 외향 · <b>I</b> 내향 &nbsp;|&nbsp; <b>S</b> 감각 · <b>N</b> 직관<br>` +
+  `<b>T</b> 사고 · <b>F</b> 감정 &nbsp;|&nbsp; <b>J</b> 계획 · <b>P</b> 즉흥</div>`;
+
+function stampBars(t, owner, yours){
   return t.map((x,i)=>{
     const A = AXES[i];
-    const cls = side => [
-      owner[i]===side ? 'mine' : '',
-      yours && yours[i]===side ? 'yours' : ''
-    ].join(' ').trim();
-    const gap = x.win !== owner[i];
+    const aOwner = owner[i] === A.a;
+    const lWin = x.win === A.a;
+    const lCls = lWin ? (aOwner ? 'win-me' : 'win-them') : 'dim';
+    const rCls = lWin ? 'dim' : (aOwner ? 'win-them' : 'win-me');
+    const dot = side => (yours && yours[i] === side) ? '<span class="ydot">●</span>' : '';
     return `
-    <div class="arow">
-      <div class="arowhead">
-        <span class="axname">${A.name}</span>
-        ${showTag ? `<span class="tagline ${gap?'gap':'same'}">${gap?'엇갈림':'일치'}</span>` : ''}
+    <div class="drow">
+      <div class="dhead">
+        <span class="${lCls}">${dot(A.a)}<span class="L">${A.a}</span><span class="pc">${x.pa}%</span></span>
+        <span class="${rCls}"><span class="pc">${x.pb}%</span><span class="L">${A.b}</span>${dot(A.b)}</span>
       </div>
-      <div class="abody">
-        <div class="achip ${cls(A.a)}" data-tag="${tag}">${A.a}</div>
-        <div class="atrack">
-          <div class="fill" data-w="${x.pa}" style="background:${owner[i]===A.a?'var(--me)':'var(--them)'}"></div>
-          <div class="fill r" data-w="${x.pb}" style="background:${owner[i]===A.b?'var(--me)':'var(--them)'}"></div>
-        </div>
-        <div class="achip ${cls(A.b)}" data-tag="${tag}">${A.b}</div>
-      </div>
-      <div class="anums">
-        <span class="${x.win===A.a?'win':''}">${x.pa}%</span>
-        <span class="${x.win===A.b?'win':''}">${x.pb}%</span>
+      <div class="dtrack">
+        <div class="dbar l" data-w="${x.pa/2}" style="background:${aOwner?'var(--me)':'var(--them)'}"></div>
+        <div class="dbar r" data-w="${x.pb/2}" style="background:${aOwner?'var(--them)':'var(--me)'}"></div>
+        <div class="mid"></div>
       </div>
     </div>`;
   }).join('');
@@ -675,10 +692,11 @@ function viewResult(){
     <div class="sub">4개 중 ${4-gapCount}개 일치 · ${gapCount}개 엇갈림</div>
   </div>
   <div class="card" style="margin-top:18px">
-    <h3 style="margin-bottom:8px">항목별 득표</h3>
-    <div class="legend"><span><i style="background:#FF3D7F"></i>친구들 득표율</span>
-      <span><i style="background:#00BFA6"></i>내가 고른 답</span></div>
-    ${stampBars(t, my, '내 답', null, false)}
+    <h3 style="margin-bottom:12px">항목별 득표</h3>
+    <div class="legend"><span><i style="background:#00BFA6"></i>내가 고른 쪽</span>
+      <span><i style="background:#FF3D7F"></i>반대쪽</span></div>
+    ${stampBars(t, my, null)}
+    ${AXFOOT}
   </div>
   ${AD_RESULT()}
   <div class="card">
@@ -728,7 +746,6 @@ function viewReveal(){
   const hit = [0,1,2,3].filter(i=>g[i]===my[i]).length;
   const diffs = [0,1,2,3].filter(i=>g[i]!==my[i]);
   const n = S.room.n, t = S.room.t;
-  const tag = nk.length<=4 ? nk : '본인 답';
 
   return `
   <div class="pad center">
@@ -745,10 +762,11 @@ function viewReveal(){
     <div class="sub">${hit}개 적중${diffs.length?' · 갈린 지점: '+diffs.map(i=>`${AXES[i].name}(당신 ${g[i]} / 본인 ${my[i]})`).join(', '):''}</div>
   </div>
   <div class="card" style="margin-top:16px">
-    <h3 style="margin-bottom:8px">지금까지 ${n}명은 이렇게 봤어요</h3>
-    <div class="legend"><span><i style="background:#00BFA6"></i>${nk}님이 고른 답</span>
-      <span><i style="background:#FF3D7F"></i>당신이 고른 답</span></div>
-    ${stampBars(t, my, tag, g, false)}
+    <h3 style="margin-bottom:12px">지금까지 ${n}명은 이렇게 봤어요</h3>
+    <div class="legend"><span><i style="background:#00BFA6"></i>${nk}님의 답</span>
+      <span style="color:var(--them)">● 당신이 고른 쪽</span></div>
+    ${stampBars(t, my, g)}
+    ${AXFOOT}
     <p class="note" style="margin-top:14px">채점평과 전체 리포트는 ${nk}님만 볼 수 있어요.</p>
   </div>
   <div class="row2">
@@ -786,7 +804,7 @@ function render(){
   app.innerHTML = VIEWS[S.screen]() + (S.modal ? viewModal() : '');
   window.scrollTo(0,0);
   requestAnimationFrame(()=>{
-    document.querySelectorAll('.fill').forEach(f=> f.style.width = f.dataset.w + '%');
+    document.querySelectorAll('.fill,.dbar').forEach(f=> f.style.width = f.dataset.w + '%');
   });
   const ni = document.getElementById('nick');
   if(ni) ni.addEventListener('input', ()=>{
