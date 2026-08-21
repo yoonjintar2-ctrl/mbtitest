@@ -34,6 +34,14 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>남들이 보는 내 MBTI는?</title>
+<meta name="description" content="내가 아는 나 vs 친구가 보는 나. 몇 글자나 겹칠까요?">
+<meta property="og:type" content="website">
+<meta property="og:title" content="남들이 보는 내 MBTI는?">
+<meta property="og:description" content="내 MBTI를 맞혀보세요. 고르는 순간 실제 답이 공개됩니다. 30초 컷.">
+<meta property="og:image" content="https://yoonjintar2-ctrl.github.io/mbtitest/og.png">
+<meta property="og:image:width" content="1200">
+<meta property="og:image:height" content="630">
+<meta name="twitter:card" content="summary_large_image">
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/static/pretendard.css">
 <style>
   :root{
@@ -199,7 +207,7 @@ const SUPABASE_KEY = 'sb_publishable_s2MhFgqTmajU_bMhFQxRvg_Yitc3zTN';
    ※ 플랫폼 > Web 에 배포 도메인을 반드시 등록해야 작동합니다. */
 const KAKAO_JS_KEY = '1a96caf2253682ec79aea9b110116e4f';
 /* 공유 카드 썸네일 (1200x630). 비우면 글자만 나가는 카드로 전송됩니다. */
-const KAKAO_IMAGE  = '';
+const KAKAO_IMAGE  = 'https://yoonjintar2-ctrl.github.io/mbtitest/og.png';
 
 const LIVE = !!(SUPABASE_URL && SUPABASE_KEY);
 const sb   = LIVE ? window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY) : null;
@@ -377,6 +385,8 @@ const AD = (unit, w, h) => `<div class="adslot" style="min-height:${h}px">` +
 const AD_HOME   = () => AD('DAN-ZYIs5pntzmIp9zES', 320, 50);
 const AD_RESULT = () => AD('DAN-Ou8s6LJLSkl85Cdx', 320, 100);
 const AD_REVEAL = () => AD('DAN-2di8i8Sc4ElEZO7l', 320, 480);
+const AD_SHARE  = () => AD('DAN-GfDadtrlUJNH86hN', 320, 100);
+const AD_REPORT = () => AD('DAN-chAWWUBSi1j912Li', 320, 480);
 
 /* ---------- 카카오톡 친구 선택 공유 ---------- */
 function kakaoReady(){
@@ -393,22 +403,25 @@ function kakaoShare(nick, url){
   const desc  = '고르는 순간 ' + nick + '님의 실제 답이 공개됩니다. 30초 컷.';
   const link  = { mobileWebUrl: url, webUrl: url };
   try{
-    if(KAKAO_IMAGE){
+    /* sendScrap = 웹페이지를 긁어 '웹사이트 링크' 카드로 전송.
+       앱 메시지가 아니라 일반 링크 공유처럼 보인다. */
+    Kakao.Share.sendScrap({
+      requestUrl: url,
+      templateArgs: {},
+      serverCallbackArgs: {}
+    });
+    return true;
+  }catch(e){
+    console.error('sendScrap 실패, feed로 대체', e);
+    try{
       Kakao.Share.sendDefault({
         objectType: 'feed',
         content: { title, description: desc, imageUrl: KAKAO_IMAGE, link },
         buttons: [{ title: '맞히러 가기', link }]
       });
-    }else{
-      Kakao.Share.sendDefault({
-        objectType: 'text',
-        text: title + '\n' + desc,
-        link,
-        buttonTitle: '맞히러 가기'
-      });
-    }
-    return true;
-  }catch(e){ console.error(e); return false; }
+      return true;
+    }catch(e2){ console.error(e2); return false; }
+  }
 }
 
 function loadAds(){
@@ -572,6 +585,8 @@ function viewShare(){
       나갔다 들어와도 결과가 바로 열려요. 다른 기기나 카톡 창에서 열 때만
       첫 화면에서 닉네임을 한 번 넣으면 됩니다.</p>
   </div>
+  ${AD_SHARE()}
+  <button class="btn ghost" data-go="home">처음으로</button>
   `;
 }
 
@@ -584,6 +599,7 @@ function viewResult(){
       <div class="stack" style="margin-top:20px">
         <button class="btn kakao" id="kshare">카카오톡으로 친구들에게 물어보기</button>
         <div class="linkbox"><code>${link(nk)}</code><button class="copy" id="cp">링크 복사</button></div>
+        <button class="btn ghost" data-go="home">처음으로</button>
       </div>
     </div>`;
   }
@@ -616,6 +632,7 @@ function viewResult(){
     <h3>친구들의 채점평</h3>
     ${detail.map(d=>`<p style="margin-top:9px;color:var(--ink)">· ${d}</p>`).join('')}
   </div>
+  ${AD_REPORT()}
   <div class="stack" style="margin-top:18px">
     <button class="btn kakao" id="kshare">링크 더 뿌려서 표 모으기</button>
     <button class="btn ghost" data-go="home">처음으로</button>
