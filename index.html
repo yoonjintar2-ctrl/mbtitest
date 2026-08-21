@@ -81,8 +81,10 @@
   .pad{padding-top:26px}
   .center{text-align:center}
 
-  .adslot{margin:24px auto;width:100%;max-width:320px;display:flex;
+  .adslot{margin:0 auto;width:100%;max-width:320px;display:flex;
     align-items:center;justify-content:center;overflow:hidden}
+  .adslot:has(.kakao_ad_area[style*="inline"]),
+  .adslot:has(iframe){margin:24px auto}
 
   .hero{padding:34px 0 10px}
   .facepair{display:grid;grid-template-columns:1fr auto 1fr;align-items:center;gap:8px;margin:26px 0 8px}
@@ -373,7 +375,7 @@ function toast(msg){
 /* ---------- 카카오 애드핏 ----------
    SPA라 화면이 바뀔 때마다 <ins>가 새로 그려지므로,
    render() 끝에서 ba.min.js를 다시 붙여 미처리 슬롯을 스캔시킨다. */
-const AD = (unit, w, h) => `<div class="adslot" style="min-height:${h}px">` +
+const AD = (unit, w, h) => `<div class="adslot">` +
   `<ins class="kakao_ad_area" style="display:none;" data-ad-unit="${unit}" ` +
   `data-ad-width="${w}" data-ad-height="${h}"></ins></div>`;
 
@@ -676,7 +678,7 @@ function viewResult(){
     <h3 style="margin-bottom:8px">항목별 득표</h3>
     <div class="legend"><span><i style="background:#FF3D7F"></i>친구들 득표율</span>
       <span><i style="background:#00BFA6"></i>내가 고른 답</span></div>
-    ${stampBars(t, my, '내 답', null, true)}
+    ${stampBars(t, my, '내 답', null, false)}
   </div>
   ${AD_RESULT()}
   <div class="card">
