@@ -190,7 +190,6 @@
 
 <div class="phone"><div id="app"></div></div>
 
-<script src="https://t1.kakaocdn.net/kakao_js_sdk/2.7.2/kakao.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script>
 /* ============================================================
@@ -201,13 +200,6 @@
    비워두면 '데모 모드'로 돌아갑니다 (새로고침하면 데이터 사라짐) */
 const SUPABASE_URL = 'https://mscjvtgcdndkymscoznt.supabase.co';
 const SUPABASE_KEY = 'sb_publishable_s2MhFgqTmajU_bMhFQxRvg_Yitc3zTN';
-
-/* ★ 카카오 공유 — 개발자센터 > 내 애플리케이션 > 앱 키 > JavaScript 키
-   비워두면 '링크 복사'로 대체 동작합니다.
-   ※ 플랫폼 > Web 에 배포 도메인을 반드시 등록해야 작동합니다. */
-const KAKAO_JS_KEY = '1a96caf2253682ec79aea9b110116e4f';
-/* 공유 카드 썸네일 (1200x630). 비우면 글자만 나가는 카드로 전송됩니다. */
-const KAKAO_IMAGE  = 'https://yoonjintar2-ctrl.github.io/mbtitest/og.png';
 
 const LIVE = !!(SUPABASE_URL && SUPABASE_KEY);
 const sb   = LIVE ? window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY) : null;
@@ -388,39 +380,23 @@ const AD_REVEAL = () => AD('DAN-2di8i8Sc4ElEZO7l', 320, 480);
 const AD_SHARE  = () => AD('DAN-GfDadtrlUJNH86hN', 320, 100);
 const AD_REPORT = () => AD('DAN-chAWWUBSi1j912Li', 320, 480);
 
-/* ---------- 카카오톡 친구 선택 공유 ---------- */
-function kakaoReady(){
-  if(!KAKAO_JS_KEY || !window.Kakao) return false;
-  if(!Kakao.isInitialized()){
-    try{ Kakao.init(KAKAO_JS_KEY); }catch(e){ return false; }
-  }
-  return Kakao.isInitialized();
-}
-
-function kakaoShare(nick, url){
-  if(!kakaoReady()) return false;
+/* ---------- 링크 공유 ----------
+   카카오 SDK의 '앱 메시지'는 PC 카톡에서 열리지 않고
+   "모바일에서 확인해 주세요"로 막힌다.
+   그래서 OS 공유 시트로 생 URL을 보낸다.
+   받는 사람은 어디서든 바로 눌리는 평범한 링크를 받고,
+   카톡이 og 태그를 읽어 썸네일 카드를 알아서 붙여준다. */
+async function shareLink(nick, url){
+  if(!navigator.share) return false;
   const title = nick + '님의 MBTI를 맞혀보세요';
-  const desc  = '고르는 순간 ' + nick + '님의 실제 답이 공개됩니다. 30초 컷.';
-  const link  = { mobileWebUrl: url, webUrl: url };
+  const text  = title + '\n고르는 순간 실제 답이 공개됩니다. 30초 컷.';
   try{
-    /* sendScrap = 웹페이지를 긁어 '웹사이트 링크' 카드로 전송.
-       앱 메시지가 아니라 일반 링크 공유처럼 보인다. */
-    Kakao.Share.sendScrap({
-      requestUrl: url,
-      templateArgs: {},
-      serverCallbackArgs: {}
-    });
+    await navigator.share({ title, text, url });
     return true;
   }catch(e){
-    console.error('sendScrap 실패, feed로 대체', e);
-    try{
-      Kakao.Share.sendDefault({
-        objectType: 'feed',
-        content: { title, description: desc, imageUrl: KAKAO_IMAGE, link },
-        buttons: [{ title: '맞히러 가기', link }]
-      });
-      return true;
-    }catch(e2){ console.error(e2); return false; }
+    if(e && e.name === 'AbortError') return true;   /* 사용자가 취소 */
+    console.error(e);
+    return false;
   }
 }
 
@@ -575,7 +551,7 @@ function viewShare(){
     <p style="margin-top:6px">친구가 고르는 순간 표가 쌓입니다.<br>3명만 모여도 꽤 볼만해져요.</p>
   </div>
   <div class="stack" style="margin-top:22px">
-    <button class="btn kakao" id="kshare">카카오톡으로 친구들에게 물어보기</button>
+    <button class="btn kakao" id="kshare">친구들에게 링크 보내기</button>
     <div class="linkbox"><code>${link(nk)}</code><button class="copy" id="cp">링크 복사</button></div>
     <button class="btn ghost" data-go="result">내 결과 보기 ${n?`(${n}명 참여)`:''}</button>
   </div>
@@ -597,7 +573,7 @@ function viewResult(){
       <h2>아직 아무도 안 왔어요</h2>
       <p style="margin-top:8px">친구 한 명만 들어와도 그래프가 그려집니다.</p>
       <div class="stack" style="margin-top:20px">
-        <button class="btn kakao" id="kshare">카카오톡으로 친구들에게 물어보기</button>
+        <button class="btn kakao" id="kshare">친구들에게 링크 보내기</button>
         <div class="linkbox"><code>${link(nk)}</code><button class="copy" id="cp">링크 복사</button></div>
         <button class="btn ghost" data-go="home">처음으로</button>
       </div>
@@ -634,7 +610,7 @@ function viewResult(){
   </div>
   ${AD_REPORT()}
   <div class="stack" style="margin-top:18px">
-    <button class="btn kakao" id="kshare">링크 더 뿌려서 표 모으기</button>
+    <button class="btn kakao" id="kshare">링크 더 보내서 표 모으기</button>
     <button class="btn ghost" data-go="home">처음으로</button>
   </div>
   `;
@@ -830,7 +806,7 @@ app.addEventListener('click', async e=>{
 
   if(id==='kshare'){
     const url = shareUrl(S.nick);
-    if(kakaoShare(S.nick, url)) return;
+    if(await shareLink(S.nick, url)) return;
     try{ await navigator.clipboard.writeText(url); }catch(err){}
     return toast('링크를 복사했어요 · 카톡에 붙여넣어 주세요');
   }
