@@ -18,11 +18,18 @@
        data-ad-unit="DAN-xxxxxxxxxxxx" data-ad-width="320" data-ad-height="100"></ins>
   <script async src="//t1.daumcdn.net/kas/static/ba.min.js"></script>
 
+  [설정]
+  <script> 맨 위 SUPABASE_URL / SUPABASE_KEY 두 줄만 채우면 실서비스로 전환.
+  비워두면 데모 모드(메모리 저장, 새로고침 시 소멸)로 동작하고 상단에 배지가 뜸.
+
   [자동 로그인]
-  store.set('mbtimirror:last', nick) 이 브라우저 기억 역할.
-  실서비스에선 localStorage 또는 1년짜리 쿠키(SameSite=Lax)에 닉네임을 저장.
-  단, 카톡 인앱 브라우저와 크롬/사파리는 저장소가 분리되므로
+  쿠키 mm_nick (1년, SameSite=Lax)에 닉네임 저장.
+  카톡 인앱 브라우저와 크롬/사파리는 쿠키가 분리되므로
   "닉네임으로 열기" 화면은 반드시 남겨둘 것.
+
+  [주소 규칙]
+  /@닉네임  → 친구 추측 화면 (vercel.json rewrite 필요)
+  ?u=닉네임 → 위와 동일 (rewrite 없이도 동작하는 예비 경로)
 -->
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
@@ -165,8 +172,9 @@
   .qopt:active{transform:translate(2px,2px);box-shadow:none}
 
   .note{font-size:11.5px;line-height:1.6;color:var(--ink-soft)}
-  .demobar{border:2px dashed var(--primary);border-radius:14px;padding:12px 13px;margin-top:18px;
-    font-size:11.5px;line-height:1.6;color:var(--primary);font-weight:600;background:rgba(74,52,232,.05)}
+  .demoflag{position:fixed;top:8px;left:50%;transform:translateX(-50%);background:var(--them);
+    color:#fff;font-size:10.5px;font-weight:800;padding:5px 13px;border:2px solid var(--line);
+    border-radius:99px;z-index:80;letter-spacing:-.01em}
   .toast{position:fixed;left:50%;bottom:28px;transform:translateX(-50%);background:var(--ink);color:#fff;
     font-size:13px;font-weight:700;padding:12px 20px;border-radius:99px;z-index:99;animation:up .2s;
     max-width:86%;text-align:center;line-height:1.45}
@@ -175,23 +183,91 @@
 
 <div class="phone"><div id="app"></div></div>
 
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script>
 /* ============================================================
    저장소 — 실서비스는 이 두 함수만 Supabase 호출로 교체
    ============================================================ */
-const mem = {};
-const store = {
-  async get(k, shared){
-    try{ const r = await window.storage.get(k, !!shared); return r ? JSON.parse(r.value) : null; }
-    catch(e){ return mem[k] ?? null; }
+/* ★★★ 여기 두 줄만 채우면 실서비스로 전환됩니다 ★★★
+   Supabase → Project Settings → API 에서 복사
+   비워두면 '데모 모드'로 돌아갑니다 (새로고침하면 데이터 사라짐) */
+const SUPABASE_URL = '';
+const SUPABASE_KEY = '';
+
+const LIVE = !!(SUPABASE_URL && SUPABASE_KEY);
+const sb   = LIVE ? window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY) : null;
+
+/* ---------- 쿠키 (이 브라우저 기억 · 1년) ---------- */
+const cookie = {
+  get(k){
+    const m = document.cookie.match('(^|; )' + k + '=([^;]*)');
+    return m ? decodeURIComponent(m[2]) : null;
   },
-  async set(k, v, shared){
-    mem[k] = v;
-    try{ await window.storage.set(k, JSON.stringify(v), !!shared); }catch(e){}
+  set(k, v){
+    document.cookie = k + '=' + encodeURIComponent(v) +
+      '; max-age=31536000; path=/; SameSite=Lax';
+  },
+  del(k){ document.cookie = k + '=; max-age=0; path=/'; }
+};
+
+/* ---------- 이 브라우저 고유 투표자 키 (중복 투표 방지) ---------- */
+function voterKey(){
+  let v = cookie.get('mm_voter');
+  if(!v){
+    v = (crypto.randomUUID ? crypto.randomUUID()
+         : String(Date.now()) + Math.random().toString(36).slice(2));
+    cookie.set('mm_voter', v);
+  }
+  return v;
+}
+
+/* ---------- 데모 모드용 임시 저장소 (새로고침하면 사라짐) ---------- */
+const demoDB = {};
+
+/* ---------- 데이터 접근 ----------
+   room 모양: { nick, mbti, n, t }
+   n = 참여자 수, t = 4축 집계 [{pa,pb,win}, ...]              */
+const api = {
+  async exists(nick){
+    if(!LIVE) return !!demoDB[nick.toLowerCase()];
+    const { data } = await sb.from('users').select('nick')
+      .eq('nick_lower', nick.toLowerCase()).maybeSingle();
+    return !!data;
+  },
+
+  async create(nick, mbti){
+    if(!LIVE){ demoDB[nick.toLowerCase()] = { nick, mbti, votes: [] }; return; }
+    const { error } = await sb.from('users')
+      .insert({ nick, nick_lower: nick.toLowerCase(), mbti });
+    if(error) throw error;
+  },
+
+  async result(nick){
+    if(!LIVE){
+      const r = demoDB[nick.toLowerCase()];
+      if(!r) return null;
+      return { nick: r.nick, mbti: r.mbti, n: r.votes.length, t: tally(r.votes) };
+    }
+    const { data } = await sb.rpc('get_result', { p_nick: nick });
+    if(!data) return null;
+    const raw = [data.e, data.s, data.t, data.j];
+    return {
+      nick: data.nick, mbti: data.mbti, n: data.n,
+      t: AXES.map((x, i) => {
+        const pa = data.n ? Math.round(raw[i] / data.n * 100) : 0;
+        return { pa, pb: 100 - pa, win: pa >= 50 ? x.a : x.b };
+      })
+    };
+  },
+
+  async vote(nick, guess){
+    if(!LIVE){ (demoDB[nick.toLowerCase()] || {votes:[]}).votes.push(guess); return; }
+    const { error } = await sb.from('votes').insert({
+      nick_lower: nick.toLowerCase(), guess, voter_key: voterKey()
+    });
+    if(error && error.code !== '23505') throw error;   /* 23505 = 중복 투표 */
   }
 };
-const UK = n => 'mbtimirror:u:' + n.toLowerCase();
-const LASTK = 'mbtimirror:last';   /* ← 이 브라우저를 기억하는 열쇠 */
 
 /* ============================================================
    데이터
@@ -342,10 +418,7 @@ function viewHome(){
     <button class="btn ${S.remembered?'ghost':''}" data-go="nick">내 테스트 만들기</button>
     ${S.remembered ? '' : '<button class="btn ghost" data-go="lookup">닉네임으로 내 결과 열기</button>'}
   </div>
-  <div class="demobar">
-    프로토타입 안내 · 여기서 만든 닉네임과 표는 공용 저장소에 남아 새로고침·재접속해도 유지됩니다.
-    다른 사람에게도 보일 수 있으니 실명은 넣지 마세요.
-  </div>`;
+  `;
 }
 
 function viewNick(){
@@ -406,7 +479,7 @@ function viewSetup(){
 }
 
 function viewShare(){
-  const n = S.room.votes.length, nk = esc(S.nick);
+  const n = S.room.n, nk = esc(S.nick);
   return `
   <div class="pad center">
     <span class="eyebrow">준비 끝 · @${nk}</span>
@@ -425,15 +498,11 @@ function viewShare(){
       나갔다 들어와도 결과가 바로 열려요. 다른 기기나 카톡 창에서 열 때만
       첫 화면에서 닉네임을 한 번 넣으면 됩니다.</p>
   </div>
-  <div class="demobar">
-    프로토타입 테스트용
-    <button class="btn ghost sm" style="margin-top:10px" data-go="guess">친구 화면으로 들어가보기</button>
-    <button class="btn ghost sm" style="margin-top:8px" id="seed">가상 친구 7명 참여시키기</button>
-  </div>`;
+  `;
 }
 
 function viewResult(){
-  const votes = S.room.votes, n = votes.length, my = S.room.mbti, nk = esc(S.nick);
+  const n = S.room.n, t = S.room.t, my = S.room.mbti, nk = esc(S.nick);
   if(!n){
     return `<div class="pad center">
       <h2>아직 아무도 안 왔어요</h2>
@@ -443,11 +512,8 @@ function viewResult(){
         <div class="linkbox"><code>${link(nk)}</code><button class="copy" id="cp">링크 복사</button></div>
       </div>
       ${AD('빈 결과 화면')}
-      <div class="demobar">프로토타입 테스트용
-        <button class="btn ghost sm" style="margin-top:10px" id="seed">가상 친구 7명 참여시키기</button></div>
     </div>`;
   }
-  const t = tally(votes);
   const friendMbti = t.map(x=>x.win).join('');
   const gapCount = t.filter((x,i)=> x.win !== my[i]).length;
   const detail = t.map((x,i)=> x.win!==my[i] ? GAP[my[i]+x.win] : SAME[my[i]]);
@@ -481,11 +547,7 @@ function viewResult(){
     <button class="btn kakao" id="cp">링크 더 뿌려서 표 모으기</button>
     <button class="btn ghost" data-go="home">처음으로</button>
   </div>
-  <div class="demobar">
-    프로토타입 테스트용
-    <button class="btn ghost sm" style="margin-top:10px" id="seed">가상 친구 7명 더 참여시키기</button>
-    <button class="btn ghost sm" style="margin-top:8px" data-go="guess">친구 화면으로 들어가보기</button>
-  </div>`;
+  `;
 }
 
 function viewLookup(){
@@ -521,7 +583,7 @@ function viewReveal(){
   const g = mbtiOf(S.guess), my = S.room.mbti, nk = esc(S.nick);
   const hit = [0,1,2,3].filter(i=>g[i]===my[i]).length;
   const diffs = [0,1,2,3].filter(i=>g[i]!==my[i]);
-  const votes = S.room.votes, n = votes.length, t = tally(votes);
+  const n = S.room.n, t = S.room.t;
   const tag = nk.length<=4 ? nk : '본인 답';
 
   return `
@@ -609,7 +671,8 @@ function rotateHero(){
 const go = s => { S.screen=s; render(); };
 
 async function loadUser(nick){
-  const r = await store.get(UK(nick), true);
+  let r = null;
+  try{ r = await api.result(nick); }catch(e){ console.error(e); toast('서버 연결에 문제가 있어요'); }
   if(!r) return false;
   S.nick = r.nick; S.room = r;
   S.mine = {}; [...r.mbti].forEach((c,i)=>S.mine[i]=c);
@@ -648,16 +711,16 @@ app.addEventListener('click', async e=>{
 
   if(id==='resume'){
     if(!(await loadUser(S.remembered))) { S.remembered=null; return render(); }
-    return go(S.room.votes.length ? 'result' : 'share');
+    return go(S.room.n ? 'result' : 'share');
   }
   if(id==='forget'){
-    await store.set(LASTK, null); S.remembered=null;
+    cookie.del('mm_nick'); S.remembered=null;
     toast('이 브라우저에서 기억을 지웠어요'); return render();
   }
 
   if(id==='nicknext'){
     if(!NICK_RE.test(S.nick)) return;
-    if(await store.get(UK(S.nick), true)){
+    if(await api.exists(S.nick)){
       S.hint = `@${S.nick} 은 이미 쓰는 사람이 있어요. 뒤에 숫자를 붙여보세요.`;
       return render();
     }
@@ -665,9 +728,11 @@ app.addEventListener('click', async e=>{
   }
 
   if(id==='create'){
-    S.room = {nick:S.nick, mbti:mbtiOf(S.mine), votes:[], at:Date.now()};
-    await store.set(UK(S.nick), S.room, true);
-    await store.set(LASTK, S.nick);
+    el.disabled = true;
+    try{ await api.create(S.nick, mbtiOf(S.mine)); }
+    catch(err){ el.disabled=false; return toast('만들지 못했어요. 잠시 후 다시 시도해주세요.'); }
+    await loadUser(S.nick);
+    cookie.set('mm_nick', S.nick);
     S.remembered = S.nick;
     return go('share');
   }
@@ -677,45 +742,63 @@ app.addEventListener('click', async e=>{
     return toast('링크를 복사했어요 · ' + link(S.nick));
   }
 
-  if(id==='seed'){
-    const fresh = await store.get(UK(S.nick), true) || S.room;
-    for(let i=0;i<7;i++) fresh.votes.push([
-      Math.random()<.62?'E':'I', Math.random()<.42?'S':'N',
-      Math.random()<.45?'T':'F', Math.random()<.55?'J':'P'].join(''));
-    S.room = fresh;
-    await store.set(UK(S.nick), fresh, true);
-    toast('가상 친구 7명이 참여했어요');
-    return go('result');
-  }
-
   if(id==='dolookup'){
     const v=(document.getElementById('mynick').value||'').trim();
     if(!v) return toast('닉네임을 넣어주세요');
     if(!(await loadUser(v))) return toast(`@${v} 로 만든 테스트가 없어요.`);
-    await store.set(LASTK, S.nick);
+    cookie.set('mm_nick', S.nick);
     S.remembered = S.nick;
-    return go(S.room.votes.length ? 'result' : 'share');
+    return go(S.room.n ? 'result' : 'share');
   }
 
   if(id==='submit'){
-    const g = mbtiOf(S.guess);
-    const fresh = await store.get(UK(S.nick), true) || S.room;
-    fresh.votes.push(g);
-    S.room = fresh;
-    await store.set(UK(S.nick), fresh, true);
+    el.disabled = true;
+    try{ await api.vote(S.nick, mbtiOf(S.guess)); }
+    catch(err){ el.disabled=false; return toast('투표를 저장하지 못했어요. 다시 눌러주세요.'); }
+    await loadUser(S.nick);
     return go('reveal');
   }
 });
 
-/* ---------- 부팅: 기억된 닉네임이면 결과로 직행 ---------- */
+/* ---------- 부팅 ----------
+   1) 주소가 /@닉네임 이고 내 닉네임이 아니면 → 친구 추측 화면
+   2) 쿠키에 기억된 닉네임이 있으면 → 내 결과로 직행
+   3) 둘 다 없으면 → 첫 화면                                   */
 (async function boot(){
-  const last = await store.get(LASTK);
+  if(!LIVE){
+    const f = document.createElement('div');
+    f.className = 'demoflag';
+    f.textContent = '데모 모드 · 저장되지 않습니다';
+    document.body.appendChild(f);
+  }
+
+  const m = location.pathname.match(/^\/@(.+)$/);
+  let urlNick = m ? decodeURIComponent(m[1]) : '';
+  if(!urlNick) urlNick = new URLSearchParams(location.search).get('u') || '';
+  urlNick = urlNick.trim();
+
+  const last = cookie.get('mm_nick');
+
+  if(urlNick && urlNick.toLowerCase() !== String(last||'').toLowerCase()){
+    if(await loadUser(urlNick)){
+      S.guess = {}; S.screen = 'guess'; render(); return;
+    }
+    toast(`@${urlNick} 를 찾지 못했어요`);
+  }
+
   if(last && await loadUser(last)){
     S.remembered = S.nick;
-    S.screen = S.room.votes.length ? 'result' : 'share';
+    S.screen = S.room.n ? 'result' : 'share';
     render(); toast(`@${S.nick} 님, 다시 오셨네요`);
     return;
   }
+
+  if(urlNick && await loadUser(urlNick)){
+    S.remembered = S.nick;
+    S.screen = S.room.n ? 'result' : 'share';
+    render(); return;
+  }
+
   render();
 })();
 </script>
