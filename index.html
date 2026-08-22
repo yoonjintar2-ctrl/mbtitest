@@ -767,10 +767,7 @@ function viewReveal(){
     ${AXFOOT}
     <p class="note" style="margin-top:14px">채점평과 전체 리포트는 ${nk}님만 볼 수 있어요.</p>
   </div>
-  <div class="row2">
-    <button class="btn ghost sm" id="rshare">결과 공유하기</button>
-    <button class="btn ghost sm" id="rsave">이미지로 저장</button>
-  </div>
+  <button class="btn ghost" id="rsave" style="margin-top:16px">결과 이미지로 공유하기</button>
   <div class="card" style="border-color:var(--them);margin-top:16px">
     <h3 style="color:var(--them)">그럼 당신은요?</h3>
     <p style="margin-top:8px">${nk}님을 이렇게 본 당신, 친구들은 당신을 어떻게 볼까요.
@@ -878,19 +875,6 @@ app.addEventListener('click', async e=>{
     el.disabled = true; toast('이미지를 만드는 중...');
     try{ await saveResultImage(); }catch(err){ console.error(err); toast('이미지를 만들지 못했어요'); }
     el.disabled = false; return;
-  }
-
-  if(id==='rshare'){
-    const g = mbtiOf(S.guess), my = S.room.mbti;
-    const hit = [0,1,2,3].filter(i=>g[i]===my[i]).length;
-    const url = shareUrl(S.nick);
-    const msg = `${S.nick}님 MBTI, 4개 중 ${hit}개 맞혔어요!`;
-    if(navigator.share){
-      try{ await navigator.share({ title: msg, text: msg, url }); return; }
-      catch(err){ if(err && err.name === 'AbortError') return; }
-    }
-    try{ await navigator.clipboard.writeText(msg + '\n' + url); }catch(err){}
-    return toast('문구와 링크를 복사했어요');
   }
 
   if(id==='refresh'){
