@@ -6,21 +6,24 @@
 <title>우리아기 MBTI 검사</title>
 <meta name="description" content="월령별 행동으로 알아보는 우리 아기 기질 유형. 0개월부터 7살까지, 12문항이면 끝나요.">
 
-<!-- ▼ 메신저 공유 썸네일 (Open Graph)
-     SITE_URL 부분을 본인의 깃허브 페이지 주소로 바꿔주세요. 예) https://myid.github.io/baby-mbti/ -->
+<!-- ▼ 메신저 공유 썸네일 (Open Graph) -->
 <meta property="og:type" content="website">
 <meta property="og:site_name" content="우리아기 MBTI 검사">
 <meta property="og:title" content="우리아기 MBTI 검사">
 <meta property="og:description" content="월령별 행동으로 알아보는 우리 아기 기질! 우리 아기는 어떤 멋진 어른이 될까요?">
-<meta property="og:url" content="https://YOUR-ID.github.io/baby-mbti/">
-<meta property="og:image" content="https://YOUR-ID.github.io/baby-mbti/og-image.png">
+<meta property="og:url" content="https://yoonjintar2-ctrl.github.io/mbtitest/">
+<meta property="og:image" content="https://yoonjintar2-ctrl.github.io/mbtitest/og-image.png?v=2">
+<meta property="og:image:secure_url" content="https://yoonjintar2-ctrl.github.io/mbtitest/og-image.png?v=2">
+<meta property="og:image:type" content="image/png">
+<meta property="og:image:alt" content="우리아기 MBTI 검사">
 <meta property="og:image:width" content="1200">
 <meta property="og:image:height" content="630">
 <meta property="og:locale" content="ko_KR">
 <meta name="twitter:card" content="summary_large_image">
 <meta name="twitter:title" content="우리아기 MBTI 검사">
 <meta name="twitter:description" content="월령별 행동으로 알아보는 우리 아기 기질! 우리 아기는 어떤 멋진 어른이 될까요?">
-<meta name="twitter:image" content="https://YOUR-ID.github.io/baby-mbti/og-image.png">
+<meta name="twitter:image" content="https://yoonjintar2-ctrl.github.io/mbtitest/og-image.png?v=2">
+<link rel="canonical" href="https://yoonjintar2-ctrl.github.io/mbtitest/">
 <!-- ▲ -->
 
 <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>👶</text></svg>">
@@ -175,6 +178,18 @@ button:focus-visible,input:focus-visible{outline:3px solid var(--peri);outline-o
 .modal img{width:100%;border-radius:14px;display:block;margin-bottom:12px}
 .modal p{font-size:15px;margin-bottom:12px}
 
+.homebar{
+  position:fixed;left:0;right:0;bottom:0;z-index:10;
+  padding:10px 20px calc(10px + env(safe-area-inset-bottom,0px));
+  background:rgba(234,242,251,.94);border-top:2px solid var(--line);
+  -webkit-backdrop-filter:blur(6px);backdrop-filter:blur(6px);
+}
+.homebar button{
+  display:block;width:100%;max-width:420px;margin:0 auto;padding:11px;border-radius:14px;
+  font-family:var(--display);font-size:17px;background:var(--paper);border:2.5px solid var(--ink);
+}
+body.has-homebar .wrap{padding-bottom:110px}
+.hint{font-size:14px;color:var(--coral);margin-top:6px;min-height:1.4em}
 @media (max-width:370px){
   .block{width:54px;height:54px;font-size:32px}
   .blocks.big .block{width:60px;height:60px;font-size:38px}
@@ -210,8 +225,9 @@ button:focus-visible,input:focus-visible{outline:3px solid var(--peri);outline-o
     <h2 class="h2">우리 아기를 소개해 주세요</h2>
     <p class="sub">월령에 따라 다른 질문이 나와요.</p>
     <div class="field">
-      <label for="name">이름 또는 태명 <span style="font-family:var(--body);font-size:14px;color:var(--ink-soft)">(선택)</span></label>
-      <input id="name" maxlength="10" placeholder="예) 튼튼이" autocomplete="off">
+      <label for="name">이름 또는 태명</label>
+      <input id="name" maxlength="10" placeholder="예) 튼튼이" autocomplete="off" oninput="checkReady()">
+      <p class="hint" id="nameHint"></p>
     </div>
     <div class="field">
       <label>지금 월령은?</label>
@@ -266,17 +282,17 @@ button:focus-visible,input:focus-visible{outline:3px solid var(--peri);outline-o
     <div class="actions" id="myActions">
       <div class="btn-row">
         <button class="btn" onclick="shareLink()">링크 공유</button>
-        <button class="btn" onclick="saveImage()">이미지 저장</button>
+        <button class="btn" id="saveBtn" onclick="saveImage()">이미지 저장</button>
       </div>
-      <button class="btn light" onclick="restart()">다시 검사하기</button>
     </div>
     <div class="actions" id="visitorActions" hidden>
-      <button class="btn" onclick="restart()">우리 아기도 검사하기</button>
+      <button class="btn" onclick="goHome()">우리 아기도 검사하기</button>
     </div>
     <p class="note">아기의 기질은 자라면서 계속 변해요.<br>재미로 즐기고, 한 가지 틀에 가두지 말아 주세요.</p>
   </section>
 </main>
 
+<div class="homebar" id="homebar" hidden><button onclick="goHome(true)">⌂ 처음으로</button></div>
 <div class="toast" id="toast"></div>
 <div class="modal" id="modal" onclick="if(event.target===this)closeModal()">
   <div class="box">
@@ -455,10 +471,14 @@ const AXES = [
 
 /* ───────── 상태 ───────── */
 let S = {name:"",group:null,qs:[],idx:0,ans:[]};
+let isShared=false, imgBlob=null;
 const $ = id => document.getElementById(id);
 
 function go(id){
   document.querySelectorAll(".screen").forEach(s=>s.classList.toggle("on",s.id===id));
+  const showBar = id==="s-info"||id==="s-q"||(id==="s-result"&&!isShared);
+  $("homebar").hidden=!showBar;
+  document.body.classList.toggle("has-homebar",showBar);
   window.scrollTo(0,0);
 }
 
@@ -472,7 +492,7 @@ function go(id){
     b.onclick=()=>{
       S.group=k;
       box.querySelectorAll(".age").forEach(x=>x.setAttribute("aria-pressed",x===b));
-      $("startBtn").disabled=false;
+      checkReady();
     };
     box.appendChild(b);
   });
@@ -487,8 +507,15 @@ function arrange(list){
   return out;
 }
 
+function checkReady(){
+  const ok = $("name").value.trim().length>0;
+  $("startBtn").disabled = !(ok && S.group);
+  $("nameHint").textContent = (!ok && S.group) ? "아기 이름이나 태명을 입력해 주세요" : "";
+}
 function startTest(){
   S.name = $("name").value.trim();
+  if(!S.name){ $("nameHint").textContent="아기 이름이나 태명을 입력해 주세요"; $("name").focus(); return; }
+  if(!S.group) return;
   S.qs = arrange(Q[S.group]);
   S.idx=0; S.ans=[];
   go("s-q"); renderQ();
@@ -567,20 +594,25 @@ function showResult(type,scores,group,name,shared){
   $("ageNoteTitle").textContent=`${g.label} 아기라면`;
   $("ageNote").textContent=g.note;
 
+  isShared=shared; imgBlob=null;
   $("sharedBanner").hidden=!shared;
   if(shared) $("sharedBanner").innerHTML = `${name?esc(name):"친구 아기"}의 검사 결과예요 👀`;
   $("myActions").hidden=shared;
   $("visitorActions").hidden=!shared;
   go("s-result");
+  if(!shared) setTimeout(prerender,400);
 }
 
-function restart(){
+function goHome(ask){
+  const onQ = document.getElementById("s-q").classList.contains("on");
+  if(ask && onQ && S.ans.length && !confirm("처음으로 돌아가면 지금까지 고른 답이 사라져요. 돌아갈까요?")) return;
   history.replaceState(null,"",location.pathname);
   S={name:"",group:null,qs:[],idx:0,ans:[]};
-  $("name").value="";
+  isShared=false; imgBlob=null;
+  $("name").value=""; $("nameHint").textContent="";
   document.querySelectorAll(".age").forEach(x=>x.setAttribute("aria-pressed","false"));
   $("startBtn").disabled=true;
-  go("s-info");
+  go("s-intro");
 }
 
 /* ───────── 공유 ───────── */
@@ -602,18 +634,57 @@ async function shareLink(){
     ta.select(); document.execCommand("copy"); ta.remove(); toast("링크를 복사했어요");
   }
 }
+/* 결과 카드를 미리 이미지로 만들어 둠 (공유 창이 바로 뜨도록) */
+async function renderCard(){
+  if(typeof html2canvas==="undefined") throw new Error("no html2canvas");
+  if(document.fonts&&document.fonts.ready) await document.fonts.ready;
+  const canvas = await html2canvas($("card"),{scale:2,backgroundColor:"#EAF2FB",useCORS:true});
+  return await new Promise(res=>canvas.toBlob(res,"image/png"));
+}
+async function prerender(){
+  try{ imgBlob = await renderCard(); }catch(e){ imgBlob=null; }
+}
+function fileName(){
+  const t=new URLSearchParams(location.search).get("t")||"MBTI";
+  return `우리아기_MBTI_${t}.png`;
+}
+const UA = navigator.userAgent;
+const isIOS = /iPhone|iPad|iPod/i.test(UA) || (navigator.platform==="MacIntel" && navigator.maxTouchPoints>1);
+const isAndroid = /Android/i.test(UA);
+const inApp = /KAKAOTALK|NAVER|Instagram|FBAN|FBAV|Line\//i.test(UA);
+
 async function saveImage(){
-  if(typeof html2canvas==="undefined"){toast("잠시 후 다시 시도해 주세요");return;}
-  toast("이미지를 만들고 있어요");
-  try{
-    if(document.fonts&&document.fonts.ready) await document.fonts.ready;
-    const canvas = await html2canvas($("card"),{scale:2,backgroundColor:"#EAF2FB",useCORS:true});
-    const url = canvas.toDataURL("image/png");
-    $("modalImg").src=url; $("dlLink").href=url;
-    const type=new URLSearchParams(location.search).get("t")||"MBTI";
-    $("dlLink").download=`우리아기_MBTI_${type}.png`;
-    $("modal").classList.add("on");
-  }catch(e){ toast("이미지를 만들지 못했어요. 화면 캡처를 이용해 주세요"); }
+  let blob = imgBlob;
+  if(!blob){
+    toast("이미지를 만들고 있어요");
+    try{ blob = await renderCard(); imgBlob=blob; }
+    catch(e){ toast("이미지를 만들지 못했어요. 화면 캡처를 이용해 주세요"); return; }
+  }
+  const file = new File([blob], fileName(), {type:"image/png"});
+
+  // 아이폰: 공유 창 → '이미지 저장' 한 번 누르면 사진 앱에 저장 (처음 한 번 사진 접근 권한을 물어봐요)
+  if(isIOS && navigator.canShare && navigator.canShare({files:[file]})){
+    try{ await navigator.share({files:[file]}); return; }
+    catch(e){ if(e.name==="AbortError") return; }
+  }
+  // 안드로이드 크롬 등: 바로 다운로드 → 갤러리 'Download' 앨범에 저장
+  if(!inApp && !isIOS){
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href=url; a.download=fileName(); document.body.appendChild(a); a.click(); a.remove();
+    setTimeout(()=>URL.revokeObjectURL(url),4000);
+    toast(isAndroid ? "갤러리에 저장했어요" : "이미지를 저장했어요");
+    return;
+  }
+  // 안드로이드 인앱 브라우저(카톡 등): 공유 창 시도
+  if(navigator.canShare && navigator.canShare({files:[file]})){
+    try{ await navigator.share({files:[file]}); return; }
+    catch(e){ if(e.name==="AbortError") return; }
+  }
+  // 마지막 방법: 이미지를 띄워서 길게 눌러 저장
+  const url = URL.createObjectURL(blob);
+  $("modalImg").src=url; $("dlLink").href=url; $("dlLink").download=fileName();
+  $("modal").classList.add("on");
 }
 function closeModal(){ $("modal").classList.remove("on"); }
 
