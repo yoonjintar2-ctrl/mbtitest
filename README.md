@@ -12,12 +12,9 @@
 3. 저장소 **Settings → Pages** 에서 Source를 `Deploy from a branch`, 브랜치를 `main` / `/(root)` 로 저장합니다.
 4. 1~2분 뒤 `https://내아이디.github.io/baby-mbti/` 에서 열립니다.
 
-## 썸네일이 나오게 하려면 (꼭!)
-`index.html` 위쪽의 `YOUR-ID.github.io/baby-mbti` 를 실제 주소로 바꿔주세요. (4군데)
-메신저 썸네일은 전체 주소(https://...)로 적어야만 표시됩니다.
-
-카카오톡은 썸네일을 캐시하므로, 주소를 고친 뒤에도 예전 모습이 나오면
-[카카오 공유 디버거](https://developers.kakao.com/tool/debugger/sharing)에서 주소를 넣고 "캐시 초기화"를 눌러주세요.
+## 공유 썸네일
+주소: https://yoonjintar2-ctrl.github.io/mbtitest/ (index.html에 이미 반영됨)
+카카오톡은 한 번 읽어간 미리보기를 저장해 두므로, 업로드 후 [카카오 공유 디버거](https://developers.kakao.com/tool/debugger/sharing)에서 위 주소를 넣고 "캐시 초기화"를 눌러주세요.
 
 ## 참고
 - 결과 링크에는 유형·점수·월령·이름이 주소에 담겨 있어서, 받은 사람도 같은 결과 화면을 볼 수 있습니다.
